@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Yojana Chatbot</title>
+</head>
+<body>
+
+<h2>Government Scheme Chatbot</h2>
+
+<input type="text" id="msg" placeholder="Ask about schemes">
+<button onclick="send()">Ask</button>
+
+<p id="reply"></p>
+
+<script>
+function send(){
+    let message = document.getElementById("msg").value;
+
+    fetch("/ask", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: "message=" + message
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("reply").innerText = data.reply;
+    });
+}
+</script>
+
+</body>
+</html>

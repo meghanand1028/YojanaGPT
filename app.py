@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
-from chatbot_model import get_response
+from chatbot_model import get_bot_response
+
 
 app = Flask(__name__)
 
@@ -7,11 +8,11 @@ app = Flask(__name__)
 def home():
     return render_template("index.html")
 
-@app.route("/chat", methods=["POST"])
-def chat():
+@app.route("/ask", methods=["POST"])
+def ask():
     user_msg = request.form["message"]
-    reply = get_response(user_msg)
-    return jsonify({"response": reply})
+    bot_reply = get_bot_response(user_msg)
+    return jsonify({"reply": bot_reply})
 
 if __name__ == "__main__":
     app.run(debug=True)
