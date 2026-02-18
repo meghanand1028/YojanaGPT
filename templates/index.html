@@ -1,31 +1,134 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Yojana Chatbot</title>
+    <title>YojanaGPT Chatbot</title>
+    <style>
+        body{
+            font-family: Arial;
+            background:#ece5dd;
+        }
+        .chatbox{
+            width:60%;
+            margin:auto;
+            margin-top:40px;
+        }
+        #chat{
+            background:white;
+            padding:20px;
+            height:450px;
+            overflow-y:auto;
+            border-radius:10px;
+            box-shadow:0 0 10px rgba(0,0,0,0.1);
+        }
+        .user{
+            text-align:right;
+            margin:10px;
+        }
+        .bot{
+            text-align:left;
+            margin:10px;
+        }
+        .bubble{
+            display:inline-block;
+            padding:10px 15px;
+            border-radius:15px;
+            max-width:70%;
+        }
+        .user .bubble{
+            background:#dcf8c6;
+        }
+        .bot .bubble{
+            background:#f1f0f0;
+        }
+        #typing{
+            font-style:italic;
+            color:gray;
+            display:none;
+        }
+        input{
+            width:75%;
+            padding:12px;
+            border-radius:20px;
+            border:1px solid #ccc;
+            margin-top:10px;
+        }
+        button{
+            padding:12px 20px;
+            border:none;
+            background:#128c7e;
+            color:white;
+            border-radius:20px;
+            cursor:pointer;
+        }
+    </style>
 </head>
 <body>
 
-<h2>Government Scheme Chatbot</h2>
+<div class="chatbox">
+    <h2>🤖 YojanaGPT Assistant</h2>
 
-<input type="text" id="msg" placeholder="Ask about schemes">
-<button onclick="send()">Ask</button>
+    <div id="chat"></div>
+    <div id="typing">Bot is typing...</div>
 
-<p id="reply"></p>
+    <input type="text" id="msg" placeholder="Ask about government schemes...">
+    <button onclick="send()">Send</button>
+</div>
 
 <script>
-function send(){
-    let message = document.getElementById("msg").value;
 
-    fetch("/ask", {
-        method: "POST",
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: "message=" + message
+function typeEffect(text, element){
+    let i = 0;
+    element.innerHTML = "";
+    function typing(){
+        if(i < text.length){
+            element.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(typing, 15);
+        }
+    }
+    typing();
+}
+
+function send(){
+    let msg = document.getElementById("msg").value;
+    if(msg.trim() === "") return;
+
+    let chat = document.getElementById("chat");
+
+    // show user message
+    chat.innerHTML += `<div class="user"><div class="bubble">${msg}</div></div>`;
+
+    document.getElementById("msg").value="";
+
+    // show typing animation
+    document.getElementById("typing").style.display="block";
+
+    fetch("/ask",{
+        method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded"},
+        body:"message="+encodeURIComponent(msg)
     })
-    .then(res => res.json())
-    .then(data => {
-        document.getElementById("reply").innerText = data.reply;
+    .then(res=>res.json())
+    .then(data=>{
+
+        document.getElementById("typing").style.display="none";
+
+        let botDiv = document.createElement("div");
+        botDiv.className="bot";
+
+        let bubble = document.createElement("div");
+        bubble.className="bubble";
+
+        botDiv.appendChild(bubble);
+        chat.appendChild(botDiv);
+
+        // typing effect
+        typeEffect(data.reply, bubble);
+
+        chat.scrollTop = chat.scrollHeight;
     });
 }
+
 </script>
 
 </body>
