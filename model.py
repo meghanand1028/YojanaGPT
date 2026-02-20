@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import re
+import os
+import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -31,22 +33,69 @@ vectorizer = TfidfVectorizer()
 X = vectorizer.fit_transform(df["processed"])
 
 # ---------------- INTENT KEYWORDS ----------------
-benefit_words = ["benefit","benefits","फायदे","लाभ","फायदा"]
-doc_words = ["document","documents","कागदपत्र","दस्तऐवज","papers"]
-elig_words = ["eligibility","eligible","पात्रता","योग्यता"]
-apply_words = ["apply","application","अर्ज","process","apply kaise"]
+benefit_words = ["benefit","benefits","फायदे","लाभ","फायदा","advantage","profit"]
+doc_words = ["document","documents","कागदपत्र","दस्तऐवज","papers","require","required"]
+elig_words = ["eligibility","eligible","पात्रता","योग्यता","qualify","criteria","age","income"]
+apply_words = ["apply","application","अर्ज","process","apply kaise","how to apply","registration","register"]
+scheme_words = ["yojana","योजना","scheme","program","ministry","government","subsidy","pension","ration"]
+
+# ---------------- SCHEME INTENT DETECTOR ----------------
+def is_scheme_query(query):
+    q = query.lower()
+    return any(word in q for word in scheme_words)
 
 # ---------------- POLITE FALLBACKS ----------------
 fallbacks = [
     "😊 Sorry, I couldn't find information about that.\nPlease ask me about government schemes like benefits, eligibility, documents or application process.",
     "🙏 I may not have data for this topic.\nTry asking about any government scheme and I’ll help you.",
-    "🤖 I am trained only on government schemes.\nPlease ask something related to schemes, benefits, or documents."
+    "🤖 I am trained mainly on government schemes.\nPlease ask something related to schemes, benefits, or documents."
 ]
 
-# ---------------- RESPONSE FUNCTION ----------------
+# ---------------- OPENAI CONFIG ----------------
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
+def get_ai_response(user_query):
+    """Call OpenAI when dataset cannot answer"""
+    if not OPENAI_API_KEY:
+        return None
+
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "gpt-4.1-mini",
+            "messages": [
+                {"role": "system",
+                 "content": "You are a helpful assistant. Answer clearly and accurately in simple language."},
+                {"role": "user", "content": user_query}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 400
+        }
+
+        response = requests.post(
+            OPENAI_API_URL,
+            json=payload,
+            headers=headers,
+            timeout=15
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            return data["choices"][0]["message"]["content"].strip()
+
+    except Exception as e:
+        print("OpenAI error:", e)
+
+    return None
+
+
+# ---------------- RESPONSE FUNCTION ----------------
 def get_response(user_query):
-    
 
     # Greeting detection
     greetings = ["hi","hello","hey","namaste","नमस्कार"]
@@ -54,40 +103,54 @@ def get_response(user_query):
         return "Hello 👋 I can help you with government schemes. Ask me about benefits, eligibility, documents or application process."
 
     query = normalize(user_query)
+
+    # 👉 If NOT scheme related → directly use AI
+    if not is_scheme_query(query):
+        ai_response = get_ai_response(user_query)
+        if ai_response:
+            return ai_response
+        return np.random.choice(fallbacks)
+
+    # 👉 Search dataset
     q_vec = vectorizer.transform([query])
     scores = cosine_similarity(q_vec, X).flatten()
     idx = np.argmax(scores)
+    best_score = scores[idx]
 
-    # -------- OUT OF TOPIC DETECTION --------
-    if scores[idx] < 0.18:
+    # 👉 If match is weak → use AI
+    if best_score < 0.35:
+        ai_response = get_ai_response(user_query)
+        if ai_response:
+            return ai_response
         return np.random.choice(fallbacks)
 
     row = df.iloc[idx]
 
-    # -------- INTENT BASED ANSWER --------
+    # 👉 Intent-based answer extraction
+    ans = ""
+
     if any(w in query for w in benefit_words):
-        ans = row["benefits"]
-
+        ans = str(row.get("benefits", "")).strip()
     elif any(w in query for w in doc_words):
-        ans = row["documents"]
-
+        ans = str(row.get("documents", "")).strip()
     elif any(w in query for w in elig_words):
-        ans = row["eligibility"]
-
+        ans = str(row.get("eligibility", "")).strip()
     elif any(w in query for w in apply_words):
-        ans = row["application"]
-
+        ans = str(row.get("application", "")).strip()
     else:
-        ans = row["details"]
+        ans = str(row.get("details", "")).strip()
 
-    # -------- CLEAN RESPONSE --------
-    ans = str(ans).strip()
+    # 👉 If dataset answer empty → use AI
+    if not ans or len(ans) < 5:
+        ai_response = get_ai_response(user_query)
+        if ai_response:
+            return ai_response
+        return np.random.choice(fallbacks)
 
-    if len(ans) < 5:
-        return "Information not available for this scheme."
-
-    # limit to first few sentences (avoid paragraph dumping)
-    ans = ans.split(". ")
-    ans = ". ".join(ans[:3])
+    # 👉 Limit response length
+    sentences = ans.split(". ")
+    ans = ". ".join(sentences[:6])
+    if len(sentences) > 6:
+        ans += "."
 
     return ans
