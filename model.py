@@ -114,11 +114,14 @@ def get_response(user_query):
     # 👉 Search dataset
     q_vec = vectorizer.transform([query])
     scores = cosine_similarity(q_vec, X).flatten()
-    idx = np.argmax(scores)
+    
+    # Get top matches
+    top_indices = np.argsort(scores)[::-1]
+    idx = top_indices[0]
     best_score = scores[idx]
 
-    # 👉 If match is weak → use AI
-    if best_score < 0.35:
+    # 👉 If match is extremely weak → use AI (threshold: 0.05)
+    if best_score < 0.05:
         ai_response = get_ai_response(user_query)
         if ai_response:
             return ai_response
@@ -138,7 +141,16 @@ def get_response(user_query):
     elif any(w in query for w in apply_words):
         ans = str(row.get("application", "")).strip()
     else:
+        # For generic scheme name queries, check multiple fields in priority order
         ans = str(row.get("details", "")).strip()
+        if not ans or len(ans) < 5:
+            ans = str(row.get("benefits", "")).strip()
+        if not ans or len(ans) < 5:
+            ans = str(row.get("eligibility", "")).strip()
+        if not ans or len(ans) < 5:
+            ans = str(row.get("application", "")).strip()
+        if not ans or len(ans) < 5:
+            ans = str(row.get("schemeCategory", "")).strip()
 
     # 👉 If dataset answer empty → use AI
     if not ans or len(ans) < 5:
