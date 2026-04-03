@@ -41,5 +41,8 @@ def ask():
     bot_reply = get_response(user_msg)
     return jsonify({"success": True, "reply": bot_reply})
 
+# ------------------ RUN SERVER ------------------
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

@@ -51,45 +51,30 @@ fallbacks = [
     "🤖 I am trained mainly on government schemes.\nPlease ask something related to schemes, benefits, or documents."
 ]
 
-# ---------------- OPENAI CONFIG ----------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+import google.generativeai as genai
+
+# ---------------- GEMINI CONFIG ----------------
+GEMINI_API_KEY = "AIzaSyAkst_dYLAvnIckalc-Fhf-Yoib3uUcFoY"
+gemini_model = None
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            gemini_model = genai.GenerativeModel(m.name)
+            break
 
 def get_ai_response(user_query):
-    """Call OpenAI when dataset cannot answer"""
-    if not OPENAI_API_KEY:
+    """Call Google Gemini when dataset cannot answer"""
+    if not gemini_model:
         return None
 
     try:
-        headers = {
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "model": "gpt-4.1-mini",
-            "messages": [
-                {"role": "system",
-                 "content": "You are a helpful assistant. Answer clearly and accurately in simple language."},
-                {"role": "user", "content": user_query}
-            ],
-            "temperature": 0.7,
-            "max_tokens": 400
-        }
-
-        response = requests.post(
-            OPENAI_API_URL,
-            json=payload,
-            headers=headers,
-            timeout=15
+        response = gemini_model.generate_content(
+            f"You are a helpful assistant. Answer clearly and accurately in simple language. Question: {user_query}"
         )
-
-        if response.status_code == 200:
-            data = response.json()
-            return data["choices"][0]["message"]["content"].strip()
-
+        return response.text.strip()
     except Exception as e:
-        print("OpenAI error:", e)
+        print("Gemini error:", e)
 
     return None
 
