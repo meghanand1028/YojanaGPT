@@ -140,6 +140,48 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
+        .auth-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .auth-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border);
+            z-index: 1;
+        }
+
+        .auth-divider span {
+            background: var(--white);
+            padding: 0 15px;
+            color: var(--gray);
+            font-size: 14px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .google-btn {
+            background: #DB4437;
+        }
+        
+        .google-btn:hover {
+            background: #c53929;
+        }
+
+        .guest-btn {
+            background: #6c757d;
+        }
+        
+        .guest-btn:hover {
+            background: #5a6268;
+        }
+
         .auth-footer {
             text-align: center;
             margin-top: 25px;
@@ -711,6 +753,17 @@
                 </button>
             </form>
             
+            <div class="auth-divider">
+                <span>OR</span>
+            </div>
+            
+            <button type="button" class="auth-btn google-btn" onclick="signInWithGoogle()">
+                <i class="fab fa-google"></i> Sign Up with Google
+            </button>
+            <button type="button" class="auth-btn guest-btn" onclick="signInAsGuest()">
+                <i class="fas fa-user-secret"></i> Continue as Guest
+            </button>
+            
             <div class="auth-footer">
                 <p>Already have an account? <a onclick="showLoginPage()">Sign In</a></p>
             </div>
@@ -743,6 +796,17 @@
                     <i class="fas fa-sign-in-alt"></i> Sign In
                 </button>
             </form>
+            
+            <div class="auth-divider">
+                <span>OR</span>
+            </div>
+            
+            <button type="button" class="auth-btn google-btn" onclick="signInWithGoogle()">
+                <i class="fab fa-google"></i> Sign In with Google
+            </button>
+            <button type="button" class="auth-btn guest-btn" onclick="signInAsGuest()">
+                <i class="fas fa-user-secret"></i> Continue as Guest
+            </button>
             
             <div class="auth-footer">
                 <p>Don't have an account? <a onclick="showSignupPage()">Create one</a></p>
@@ -844,8 +908,65 @@
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+
     <!-- JavaScript -->
     <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDgURDIBCmu7NjT7t-9bkvFB6yuP_GWyU4",
+            authDomain: "yojna-gpt.firebaseapp.com",
+            projectId: "yojna-gpt",
+            storageBucket: "yojna-gpt.firebasestorage.app",
+            messagingSenderId: "511316491020",
+            appId: "1:511316491020:web:ec7333486b938c40572729",
+            measurementId: "G-MVR7ZLE6M2"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // Listen for auth state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                let displayName = "User";
+                if (user.isAnonymous) {
+                    displayName = "Guest";
+                } else if (user.displayName) {
+                    displayName = user.displayName;
+                } else if (user.email) {
+                    displayName = user.email.split('@')[0];
+                }
+                
+                document.querySelector('.user-info span').textContent = displayName;
+                document.querySelector('.user-avatar').textContent = displayName.charAt(0).toUpperCase();
+                
+                // Redirect if attempting to view auth pages
+                if (document.getElementById('login-page').style.display === 'flex' || document.getElementById('signup-page').style.display === 'flex') {
+                    showHomePage();
+                }
+            } else {
+                // If not logged in and not on signup page, show login
+                if (document.getElementById('signup-page').style.display !== 'flex') {
+                    showLoginPage();
+                }
+            }
+        });
+
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch((error) => {
+                alert('Google Sign-In error: ' + error.message);
+            });
+        }
+
+        function signInAsGuest() {
+            auth.signInAnonymously().catch((error) => {
+                alert('Guest Sign-In error: ' + error.message);
+            });
+        }
+
         // ==================== PAGE NAVIGATION ====================
         function showSignupPage() {
             document.getElementById('signup-page').style.display = 'flex';
@@ -909,14 +1030,24 @@
                         return;
                     }
                     
-                    // Store signup data
-                    localStorage.setItem('user_email', email);
-                    localStorage.setItem('user_name', name);
-                    localStorage.setItem('user_password', password);
-                    
-                    alert('Account created successfully! Please sign in.');
-                    showLoginPage();
-                    signupForm.reset();
+                    // Firebase Sign Up
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .then((userCredential) => {
+                            // Set displayName
+                            return userCredential.user.updateProfile({
+                                displayName: name
+                            }).then(() => {
+                                showHomePage();
+                                signupForm.reset();
+                            });
+                        })
+                        .catch((error) => {
+                            let msg = "Signup error";
+                            if (error.code === 'auth/email-already-in-use') {
+                                msg = "This email address is already registered.";
+                            }
+                            alert(msg + " - " + error.message);
+                        });
                 });
             }
             
@@ -933,26 +1064,19 @@
                         return;
                     }
                     
-                    // Simple validation (in real app, verify against backend)
-                    const storedEmail = localStorage.getItem('user_email');
-                    const storedPassword = localStorage.getItem('user_password');
-                    const storedName = localStorage.getItem('user_name');
-                    
-                    if (email === storedEmail && password === storedPassword) {
-                        // Update user display
-                        document.querySelector('.user-info span').textContent = storedName || email.split('@')[0];
-                        document.querySelector('.user-avatar').textContent = (storedName || email).charAt(0).toUpperCase();
-                        
-                        showHomePage();
-                        loginForm.reset();
-                    } else {
-                        alert('Invalid email or password');
-                    }
+                    // Firebase Log In
+                    auth.signInWithEmailAndPassword(email, password)
+                        .then((userCredential) => {
+                            showHomePage();
+                            loginForm.reset();
+                        })
+                        .catch((error) => {
+                            alert('Invalid email or password. Please try again.');
+                            console.error("Login Error:", error);
+                        });
                 });
             }
-            
-            // Show login page on initial load
-            showLoginPage();
+            // Initial view is handled by auth.onAuthStateChanged
         });
 
         // ==================== HOME PAGE FUNCTIONS ====================
@@ -1090,9 +1214,11 @@
         }
 
         function logout() {
-            localStorage.removeItem('user_email');
-            localStorage.removeItem('user_name');
-            showLoginPage();
+            auth.signOut().then(() => {
+                showLoginPage();
+            }).catch((error) => {
+                console.error("Logout error", error);
+            });
         }
 
         // ==================== CHAT INPUT HANDLER ====================
