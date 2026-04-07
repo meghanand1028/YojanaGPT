@@ -7,7 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ---------------- LOAD DATA ----------------
-df = pd.read_csv("updated_data.csv")
+df = pd.read_csv("updated_2.0_schemes.csv")
 df = df.fillna("")
 
 # ---------------- TEXT COLUMNS ----------------
@@ -54,7 +54,7 @@ fallbacks = [
 import google.generativeai as genai
 
 # ---------------- GEMINI CONFIG ----------------
-GEMINI_API_KEY = "AIzaSyAkst_dYLAvnIckalc-Fhf-Yoib3uUcFoY"
+GEMINI_API_KEY = "AIzaSyDgZEXSuHry5t2fL1B4k3AoGwEy62FGp5w"
 gemini_model = None
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -82,12 +82,12 @@ def get_ai_response(user_query):
 # ---------------- RESPONSE FUNCTION ----------------
 def get_response(user_query):
 
-    # Greeting detection
-    greetings = ["hi","hello","hey","namaste","नमस्कार"]
-    if any(g in user_query.lower() for g in greetings):
-        return "Hello 👋 I can help you with government schemes. Ask me about benefits, eligibility, documents or application process."
-
     query = normalize(user_query)
+
+    # Greeting detection
+    greetings = {"hi", "hello", "hey", "namaste", "नमस्कार"}
+    if any(g in query.split() for g in greetings):
+        return "Hello 👋 I can help you with government schemes. Ask me about benefits, eligibility, documents or application process."
 
     # 👉 If NOT scheme related → directly use AI
     if not is_scheme_query(query):
