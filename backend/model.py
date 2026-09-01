@@ -30,7 +30,8 @@ except Exception as e:
 
 # Pure NumPy TF-IDF Vectorizer
 class SimpleTfidfVectorizer:
-    def __init__(self):
+    def __init__(self, max_features=1500):
+        self.max_features = max_features
         self.vocab = {}
         self.idf = []
         
@@ -40,13 +41,15 @@ class SimpleTfidfVectorizer:
         if N == 0:
             return None
             
-        vocab_set = {}
+        doc_counts = {}
         for doc in docs:
             for word in set(doc):
-                vocab_set[word] = vocab_set.get(word, 0) + 1
+                doc_counts[word] = doc_counts.get(word, 0) + 1
                 
-        self.vocab = {word: i for i, word in enumerate(vocab_set.keys())}
-        self.idf = [math.log((N + 1) / (count + 1)) + 1 for count in vocab_set.values()]
+        # Top max_features frequency selection to keep vectorizer ultra-fast and memory lean
+        sorted_words = sorted(doc_counts.items(), key=lambda x: x[1], reverse=True)[:self.max_features]
+        self.vocab = {word: i for i, (word, _) in enumerate(sorted_words)}
+        self.idf = [math.log((N + 1) / (count + 1)) + 1 for _, count in sorted_words]
         
         matrix = np.zeros((N, len(self.vocab)), dtype=np.float32)
         for d_idx, doc in enumerate(docs):
@@ -54,11 +57,11 @@ class SimpleTfidfVectorizer:
                 continue
             tf = {}
             for word in doc:
-                tf[word] = tf.get(word, 0) + 1
-            for word, count in tf.items():
                 if word in self.vocab:
-                    w_idx = self.vocab[word]
-                    matrix[d_idx, w_idx] = (count / len(doc)) * self.idf[w_idx]
+                    tf[word] = tf.get(word, 0) + 1
+            for word, count in tf.items():
+                w_idx = self.vocab[word]
+                matrix[d_idx, w_idx] = (count / len(doc)) * self.idf[w_idx]
                     
             norm = np.linalg.norm(matrix[d_idx])
             if norm > 0:
@@ -74,11 +77,11 @@ class SimpleTfidfVectorizer:
                 continue
             tf = {}
             for word in doc:
-                tf[word] = tf.get(word, 0) + 1
-            for word, count in tf.items():
                 if word in self.vocab:
-                    w_idx = self.vocab[word]
-                    matrix[d_idx, w_idx] = (count / len(doc)) * self.idf[w_idx]
+                    tf[word] = tf.get(word, 0) + 1
+            for word, count in tf.items():
+                w_idx = self.vocab[word]
+                matrix[d_idx, w_idx] = (count / len(doc)) * self.idf[w_idx]
             norm = np.linalg.norm(matrix[d_idx])
             if norm > 0:
                 matrix[d_idx] = matrix[d_idx] / norm
