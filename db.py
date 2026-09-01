@@ -15,6 +15,15 @@ class User(db.Model):
     
     chats = db.relationship('ChatHistory', backref='user', lazy=True, cascade="all, delete-orphan")
 
+    def __init__(self, name=None, email=None, password_hash=None, **kwargs):
+        super().__init__(**kwargs)
+        if name is not None:
+            self.name = name
+        if email is not None:
+            self.email = email
+        if password_hash is not None:
+            self.password_hash = password_hash
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -38,6 +47,15 @@ class ChatHistory(db.Model):
     user_message = db.Column(db.Text, nullable=False)
     bot_reply = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __init__(self, user_id=None, user_message=None, bot_reply=None, **kwargs):
+        super().__init__(**kwargs)
+        if user_id is not None:
+            self.user_id = user_id
+        if user_message is not None:
+            self.user_message = user_message
+        if bot_reply is not None:
+            self.bot_reply = bot_reply
 
     def to_dict(self):
         return {

@@ -1,13 +1,15 @@
 import os
 from flask import Flask, render_template, request, jsonify, session
-from dotenv import load_dotenv
-from sqlalchemy import text
+try:
+    import importlib
+    _dotenv = importlib.import_module("dotenv")
+    _dotenv.load_dotenv()
+except Exception:
+    pass
 
+from sqlalchemy import text
 from model import get_response
 from db import db, User, ChatHistory
-
-# Load environment variables from .env file
-load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -63,6 +65,9 @@ def get_firebase_config():
     }
 
 @app.route("/")
+@app.route("/index")
+@app.route("/api")
+@app.route("/api/index")
 def home():
     """Render index page with dynamic Firebase configuration"""
     return render_template("index.html", firebase_config=get_firebase_config())
@@ -207,11 +212,11 @@ def history():
 
 @app.errorhandler(404)
 def not_found(e):
-    if request.path.startswith("/ask") or request.path.startswith("/api") or request.is_json:
+    if request.path.startswith("/api/") or request.is_json:
         return jsonify({
             "success": False,
             "error": f"Endpoint '{request.path}' not found.",
-            "available_endpoints": ["/", "/ask", "/health", "/signup", "/login", "/logout", "/history"]
+            "available_endpoints": ["/", "/api/index", "/ask", "/health", "/signup", "/login", "/logout", "/history"]
         }), 404
     return render_template("index.html", firebase_config=get_firebase_config()), 404
 

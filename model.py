@@ -2,10 +2,12 @@ import os
 import re
 import math
 import requests
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
+try:
+    import importlib
+    _dotenv = importlib.import_module("dotenv")
+    _dotenv.load_dotenv()
+except Exception:
+    pass
 
 # Safe optional imports for serverless environments
 try:
