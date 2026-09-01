@@ -6,7 +6,9 @@ import { Bot, User, Menu, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-const API_BASE = 'http://127.0.0.1:10000';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '5173'
+  ? 'http://127.0.0.1:10000' 
+  : '';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);

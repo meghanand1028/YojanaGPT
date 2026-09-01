@@ -14,7 +14,7 @@ from db import db, User, ChatHistory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app, supports_credentials=True)
 app.secret_key = os.environ.get("SECRET_KEY", "yojanagpt-super-secret-key-change-in-production")
 
@@ -50,7 +50,10 @@ def ensure_db_initialized():
 
 @app.route("/")
 def home():
-    """Root API endpoint"""
+    """Serve frontend index.html if present, else JSON health status"""
+    index_path = os.path.join(app.static_folder, "index.html")
+    if os.path.exists(index_path):
+        return app.send_static_file("index.html")
     return jsonify({"success": True, "message": "YojanaGPT API is running"}), 200
 
 @app.route("/health", methods=["GET"])
@@ -193,6 +196,9 @@ def history():
 
 @app.errorhandler(404)
 def not_found(e):
+    index_path = os.path.join(app.static_folder, "index.html")
+    if os.path.exists(index_path) and not request.path.startswith("/api/"):
+        return app.send_static_file("index.html")
     return jsonify({
         "success": False,
         "error": f"Endpoint '{request.path}' not found.",

@@ -6,6 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '5173'
+  ? 'http://127.0.0.1:10000' 
+  : '';
+
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,7 +21,7 @@ export default function Signup() {
     e.preventDefault();
     setError('');
     try {
-      const res = await axios.post('http://127.0.0.1:10000/api/signup', { name, email, password }, { withCredentials: true });
+      const res = await axios.post(`${API_BASE}/api/signup`, { name, email, password }, { withCredentials: true });
       if (res.data.success) {
         navigate('/');
       } else {
