@@ -1,5 +1,6 @@
 import os
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, request, jsonify, session
+from flask_cors import CORS
 try:
     import importlib
     _dotenv = importlib.import_module("dotenv")
@@ -13,24 +14,19 @@ from db import db, User, ChatHistory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(
-    __name__,
-    template_folder=os.path.join(BASE_DIR, "templates"),
-    static_folder=os.path.join(BASE_DIR, "static")
-)
+app = Flask(__name__)
+CORS(app, supports_credentials=True)
 app.secret_key = os.environ.get("SECRET_KEY", "yojanagpt-super-secret-key-change-in-production")
 
-# Database Configuration
-raw_db_url = os.environ.get("DATABASE_URL", "").strip()
+# Database Configuration (Supabase PostgreSQL via Render)
+db_url = os.environ.get("DATABASE_URL", "").strip()
 
-if os.environ.get("VERCEL") or os.environ.get("NOW_BUILDER"):
-    # Force writable /tmp directory on Vercel serverless containers
-    if not raw_db_url or raw_db_url.startswith("sqlite:"):
-        db_url = "sqlite:////tmp/yojanagpt.db"
-    else:
-        db_url = raw_db_url
-else:
-    db_url = raw_db_url if raw_db_url else "sqlite:///yojanagpt.db"
+# Fallback to local SQLite for local development only if DATABASE_URL is missing
+if not db_url:
+    db_url = "sqlite:///yojanagpt_local.db"
+elif db_url.startswith("postgres://"):
+    # SQLAlchemy 1.4+ requires postgresql:// instead of postgres://
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -52,25 +48,10 @@ def ensure_db_initialized():
         except Exception as e:
             print("Database lazy init note:", e)
 
-def get_firebase_config():
-    """Retrieve Firebase client config securely from environment variables"""
-    return {
-        "apiKey": os.environ.get("FIREBASE_API_KEY", ""),
-        "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", ""),
-        "projectId": os.environ.get("FIREBASE_PROJECT_ID", ""),
-        "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET", ""),
-        "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID", ""),
-        "appId": os.environ.get("FIREBASE_APP_ID", ""),
-        "measurementId": os.environ.get("FIREBASE_MEASUREMENT_ID", "")
-    }
-
 @app.route("/")
-@app.route("/index")
-@app.route("/api")
-@app.route("/api/index")
 def home():
-    """Render index page with dynamic Firebase configuration"""
-    return render_template("index.html", firebase_config=get_firebase_config())
+    """Root API endpoint"""
+    return jsonify({"success": True, "message": "YojanaGPT API is running"}), 200
 
 @app.route("/health", methods=["GET"])
 @app.route("/api/health", methods=["GET"])
@@ -212,13 +193,11 @@ def history():
 
 @app.errorhandler(404)
 def not_found(e):
-    if request.path.startswith("/api/") or request.is_json:
-        return jsonify({
-            "success": False,
-            "error": f"Endpoint '{request.path}' not found.",
-            "available_endpoints": ["/", "/api/index", "/ask", "/health", "/signup", "/login", "/logout", "/history"]
-        }), 404
-    return render_template("index.html", firebase_config=get_firebase_config()), 404
+    return jsonify({
+        "success": False,
+        "error": f"Endpoint '{request.path}' not found.",
+        "available_endpoints": ["/", "/ask", "/health", "/signup", "/login", "/logout", "/history"]
+    }), 404
 
 @app.errorhandler(405)
 def method_not_allowed(e):
