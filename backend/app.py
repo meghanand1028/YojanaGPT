@@ -13,8 +13,10 @@ from model import get_response
 from db import db, User, ChatHistory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIST = os.path.join(os.path.dirname(BASE_DIR), "frontend", "dist")
+STATIC_DIR = FRONTEND_DIST if os.path.exists(FRONTEND_DIST) else os.path.join(BASE_DIR, "static")
 
-app = Flask(__name__, static_folder="static", static_url_path="")
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
 CORS(app, supports_credentials=True)
 app.secret_key = os.environ.get("SECRET_KEY", "yojanagpt-super-secret-key-change-in-production")
 
