@@ -101,7 +101,7 @@ def normalize(text):
     return text
 
 def load_model_data():
-    """Lazily load and vectorize dataset safely for serverless runtimes"""
+    """Lazily load and vectorize dataset safely for serverless/512MB RAM runtimes"""
     global _df, _vectorizer, _X
     if _df is not None:
         return _df, _vectorizer, _X
@@ -114,33 +114,31 @@ def load_model_data():
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     CSV_PATH = os.path.join(BASE_DIR, "updated_2.0_schemes.csv")
+    if not os.path.exists(CSV_PATH) and os.path.exists("updated_2.0_schemes.csv"):
+        CSV_PATH = "updated_2.0_schemes.csv"
 
     try:
         if os.path.exists(CSV_PATH):
-            df_data = pd.read_csv(CSV_PATH)
-        elif os.path.exists("updated_2.0_schemes.csv"):
-            df_data = pd.read_csv("updated_2.0_schemes.csv")
-        else:
-            df_data = pd.DataFrame()
+            text_cols = [
+                'slug', 'details', 'benefits', 'eligibility',
+                'application', 'documents', 'level',
+                'schemeCategory', 'tags'
+            ]
+            df_data = pd.read_csv(CSV_PATH, usecols=lambda c: c in text_cols).fillna("")
+            
+            # Combine and normalize text in a single lightweight pass
+            processed_texts = []
+            for _, row in df_data.iterrows():
+                row_str = " ".join([str(val) for val in row.values if val])
+                processed_texts.append(normalize(row_str))
 
-        df_data = df_data.fillna("")
-        text_cols = [
-            'slug', 'details', 'benefits', 'eligibility',
-            'application', 'documents', 'level',
-            'schemeCategory', 'tags'
-        ]
-        valid_cols = [c for c in text_cols if c in df_data.columns]
-        
-        if valid_cols and not df_data.empty:
-            df_data["combined"] = df_data[valid_cols].agg(" ".join, axis=1)
-            df_data["processed"] = df_data["combined"].apply(normalize)
             _vectorizer = SimpleTfidfVectorizer()
-            _X = _vectorizer.fit_transform(df_data["processed"])
+            _X = _vectorizer.fit_transform(processed_texts)
+            _df = df_data
         else:
+            _df = pd.DataFrame()
             _vectorizer = None
             _X = None
-
-        _df = df_data
     except Exception as e:
         print("Dataset loading note:", e)
         _df = None

@@ -9,7 +9,7 @@ except Exception:
     pass
 
 from sqlalchemy import text
-from model import get_response
+from model import get_response, load_model_data
 from db import db, User, ChatHistory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -43,13 +43,15 @@ _db_initialized = False
 
 @app.before_request
 def ensure_db_initialized():
-    """Lazily initialize database tables on first request"""
+    """Lazily initialize database tables and model dataset on first request"""
     global _db_initialized
     if not _db_initialized:
         try:
             with app.app_context():
                 db.create_all()
             _db_initialized = True
+            import threading
+            threading.Thread(target=load_model_data, daemon=True).start()
         except Exception as e:
             print("Database lazy init note:", e)
 
