@@ -16,9 +16,12 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIST = os.path.join(os.path.dirname(BASE_DIR), "frontend", "dist")
 STATIC_DIR = FRONTEND_DIST if os.path.exists(FRONTEND_DIST) else os.path.join(BASE_DIR, "static")
 
+import re
+
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="")
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, origins=re.compile(r".*"))
 app.secret_key = os.environ.get("SECRET_KEY", "yojanagpt-super-secret-key-change-in-production")
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # Database Configuration (Supabase PostgreSQL via Render)
 db_url = os.environ.get("DATABASE_URL", "").strip()

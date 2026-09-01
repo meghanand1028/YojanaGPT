@@ -54,7 +54,8 @@ function App() {
       setHistory(prev => [{ user_message: queryText }, ...prev].slice(0, 10));
     } catch (err) {
       setIsTyping(false);
-      setMessages(prev => [...prev, { content: 'Network error.', sender: 'bot', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+      const errorDetail = err.response?.data?.reply || err.response?.data?.message || err.message || 'Network error.';
+      setMessages(prev => [...prev, { content: `Sorry, an error occurred: ${errorDetail}`, sender: 'bot', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
     }
   };
 
