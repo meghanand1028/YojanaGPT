@@ -188,16 +188,50 @@ def get_gemini_model():
             print("Gemini initialization error:", e)
     return gemini_model
 
+import urllib.parse
+
+def perform_web_search(query):
+    """Scrape live web search snippets when dataset match is missing or weak"""
+    try:
+        url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        res = requests.get(url, headers=headers, timeout=4)
+        if res.status_code == 200:
+            snippets = re.findall(r'result__snippet.*?>(.*?)</a>', res.text, re.DOTALL)
+            clean_snippets = []
+            for s in snippets[:4]:
+                clean_text = re.sub(r'<[^>]+>', '', s).strip()
+                if clean_text:
+                    clean_snippets.append(f"- {clean_text}")
+            if clean_snippets:
+                return "\n".join(clean_snippets)
+    except Exception as e:
+        print("Web search note:", e)
+    return None
+
 def get_ai_response(user_query):
-    """Call Google Gemini when dataset cannot answer"""
+    """Call Google Gemini with web search context when dataset cannot answer"""
     model_inst = get_gemini_model()
     if not model_inst:
         return None
 
-    try:
-        response = model_inst.generate_content(
-            f"You are a helpful assistant. Answer clearly and accurately in simple language. Question: {user_query}"
+    # Retrieve live web search context when dataset has no match
+    web_context = perform_web_search(user_query)
+
+    if web_context:
+        prompt = (
+            f"You are a helpful AI assistant for Indian Government Schemes. "
+            f"Answer the user's question clearly and accurately in simple language using the following web search context if relevant.\n\n"
+            f"Web Search Results:\n{web_context}\n\n"
+            f"User Question: {user_query}"
         )
+    else:
+        prompt = f"You are a helpful assistant. Answer clearly and accurately in simple language. Question: {user_query}"
+
+    try:
+        response = model_inst.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
         print("Gemini error:", e)
