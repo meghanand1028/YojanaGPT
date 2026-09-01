@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: yojanagpt
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
